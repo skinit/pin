@@ -42,15 +42,18 @@ class OverlayView: NSView {
     var closeButton: NSView!
     var resizeHandle: NSView!
     weak var parentImageView: PinnedImageView?
+    private var trackingArea: NSTrackingArea?
     
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         setupControls()
+        setupTrackingArea()
     }
     
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupControls()
+        setupTrackingArea()
     }
     
     func setupControls() {
@@ -75,6 +78,7 @@ class OverlayView: NSView {
         xLayer.lineWidth = 2.0
         xLayer.lineCap = .round
         closeButton.layer?.addSublayer(xLayer)
+        closeButton.isHidden = true
         addSubview(closeButton)
         
         let resizeHandleSize: CGFloat = 20
@@ -103,7 +107,56 @@ class OverlayView: NSView {
         gripLayer.path = gripPath
         gripLayer.fillColor = NSColor.white.withAlphaComponent(0.9).cgColor
         resizeHandle.layer?.addSublayer(gripLayer)
+        resizeHandle.isHidden = true
         addSubview(resizeHandle)
+    }
+    
+    func setupTrackingArea() {
+        if let existingTrackingArea = trackingArea {
+            removeTrackingArea(existingTrackingArea)
+        }
+        
+        trackingArea = NSTrackingArea(
+            rect: bounds,
+            options: [.activeInKeyWindow, .mouseEnteredAndExited, .mouseMoved],
+            owner: self,
+            userInfo: nil
+        )
+        
+        if let trackingArea = trackingArea {
+            addTrackingArea(trackingArea)
+        }
+    }
+    
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        setupTrackingArea()
+    }
+    
+    override func mouseEntered(with event: NSEvent) {
+        super.mouseEntered(with: event)
+        showButtons()
+    }
+    
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        hideButtons()
+    }
+    
+    private func showButtons() {
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.2
+            closeButton.animator().isHidden = false
+            resizeHandle.animator().isHidden = false
+        }
+    }
+    
+    private func hideButtons() {
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.2
+            closeButton.animator().isHidden = true
+            resizeHandle.animator().isHidden = true
+        }
     }
     
     override func setFrameSize(_ newSize: NSSize) {
@@ -115,6 +168,7 @@ class OverlayView: NSView {
             let resizeHandleSize: CGFloat = 20
             resizeHandle.frame = NSRect(x: newSize.width - resizeHandleSize - 8, y: 8, width: resizeHandleSize, height: resizeHandleSize)
         }
+        setupTrackingArea()
     }
     
     override func mouseDown(with event: NSEvent) {
